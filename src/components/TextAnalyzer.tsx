@@ -1,24 +1,40 @@
-import { useState } from 'react';
-import { TextField, Paper, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
+import { useState, useCallback } from 'react';
+import { 
+  TextField, 
+  Paper, 
+  Typography, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  CircularProgress,
+  Chip
+} from '@mui/material';
 import { analyzeText } from '../services/nlpService';
+import debounce from 'lodash/debounce';
 
 function TextAnalyzer() {
   const [text, setText] = useState('');
   const [errors, setErrors] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleTextChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const debouncedAnalyze = useCallback(
+    debounce(async (text: string) => {
+      if (text.length > 5) {
+        setLoading(true);
+        const textErrors = await analyzeText(text);
+        setErrors(textErrors);
+        setLoading(false);
+      } else {
+        setErrors([]);
+      }
+    }, 500),
+    []
+  );
+
+  const handleTextChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newText = event.target.value;
     setText(newText);
-
-    if (newText.length > 5) {
-      setLoading(true);
-      const textErrors = await analyzeText(newText);
-      setErrors(textErrors);
-      setLoading(false);
-    } else {
-      setErrors([]);
-    }
+    debouncedAnalyze(newText);
   };
 
   return (
@@ -32,7 +48,7 @@ function TextAnalyzer() {
         rows={4}
         value={text}
         onChange={handleTextChange}
-        placeholder="Enter text to analyze..."
+        placeholder="Enter text to analyze (minimum 6 characters)..."
         variant="outlined"
         className="mb-4"
       />
@@ -40,10 +56,35 @@ function TextAnalyzer() {
       {errors.length > 0 && (
         <List>
           {errors.map((error, index) => (
-            <ListItem key={index}>
+            <ListItem key={index} className="flex flex-col items-start">
               <ListItemText
                 primary={error.message}
-                secondary={`Category: ${error.rule.category}`}
+                secondary={
+                  <>
+                    <Typography component="span" variant="body2" color="textSecondary">
+                      Category: {error.rule.category}
+                    </Typography>
+                    {error.replacements && error.replacements.length > 0 && (
+                      <div className="mt-2">
+                        <Typography component="span" variant="body2" color="textSecondary">
+                          Suggestions:
+                        </Typography>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {error.replacements.slice(0, 3).map((replacement, idx) => (
+                            <Chip
+                              key={idx}
+                              label={replacement.value}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                              className="mr-1"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                }
               />
             </ListItem>
           ))}

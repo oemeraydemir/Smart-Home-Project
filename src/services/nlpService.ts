@@ -9,6 +9,9 @@ interface LanguageToolError {
     description: string;
     category: string;
   };
+  replacements?: {
+    value: string;
+  }[];
 }
 
 export const analyzeText = async (text: string): Promise<LanguageToolError[]> => {
